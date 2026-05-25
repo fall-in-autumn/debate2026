@@ -2,27 +2,38 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>의리T의 100% 무료 도덕 토론방 (텍스트 버전)</title>
+    <title>의리T의 AI 음성인식 도덕 토론방</title>
     <style>
-        body { font-family: 'Malgun Gothic', sans-serif; padding: 25px; line-height: 1.6; background-color: #f9f9f9; }
-        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        h1 { color: #333; text-align: center; }
-        label { font-weight: bold; display: block; margin-top: 15px; margin-bottom: 5px; }
-        input, select, textarea { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ddd; border-radius: 5px; font-size: 15px; }
-        textarea { height: 150px; resize: none; }
-        button { width: 100%; padding: 12px; background-color: #4A90E2; color: white; border: none; border-radius: 5px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 20px; }
-        button:hover { background-color: #357ABD; }
-        #status { font-weight: bold; text-align: center; margin-top: 20px; color: #666; }
+        body { font-family: 'Malgun Gothic', sans-serif; padding: 25px; line-height: 1.6; background-color: #f0f4f8; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        h1 { color: #2C3E50; text-align: center; margin-bottom: 5px; }
+        .sub-title { text-align: center; color: #7F8C8D; margin-bottom: 20px; font-size: 14px; }
+        label { font-weight: bold; display: block; margin-top: 15px; margin-bottom: 5px; color: #34495E; }
+        input, select, textarea { width: 100%; padding: 12px; box-sizing: border-box; border: 1px solid #BDC3C7; border-radius: 6px; font-size: 15px; }
+        textarea { height: 180px; resize: none; background-color: #f9f9f9; color: #2C3E50; font-weight: 500; }
+        
+        .btn-group { display: flex; gap: 10px; margin-top: 15px; }
+        button { flex: 1; padding: 12px; font-size: 15px; font-weight: bold; cursor: pointer; border-radius: 6px; border: none; transition: 0.2s; }
+        
+        #startBtn { background-color: #E74C3C; color: white; }
+        #startBtn:hover { background-color: #C0392B; }
+        #stopBtn { background-color: #7F8C8D; color: white; }
+        #stopBtn:hover { background-color: #6C7A89; }
+        #submitBtn { width: 100%; background-color: #2ECC71; color: white; margin-top: 25px; font-size: 16px; }
+        #submitBtn:hover { background-color: #27AE60; }
+        
+        button:disabled { background-color: #BDC3C7 !important; color: #7F8C8D !important; cursor: not-allowed; }
+        #status { font-weight: bold; text-align: center; margin-top: 20px; color: #34495E; padding: 10px; background: #EAEDED; border-radius: 5px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>📝 도덕 수업 모둠 토론방</h1>
-    <p style="text-align: center; color: #666;">모둠원들과 함께 토론한 내용을 정리해서 제출해 주세요.</p>
+    <h1>🎤 AI 음성인식 도덕 토론방</h1>
+    <div class="sub-title">말하는 내용이 실시간으로 받아적히며, 임의 수정은 불가능합니다.</div>
     <hr>
     
-    <!-- 1. 학생 정보 입력창 -->
+    <!-- 1. 학생 정보 입력 -->
     <label>👥 참여 학생 이름</label>
     <input type="text" id="studentNames" placeholder="예: 김철수, 이영희, 박민수">
     
@@ -34,22 +45,30 @@
         <option value="4모둠">4모둠</option>
     </select>
 
-    <!-- 2. 토론 내용 입력창 -->
-    <label>💬 우리 모둠의 토론 기록 및 최종 의견</label>
-    <textarea id="debateText" placeholder="여기에 도덕적 딜레마에 대한 모둠원들의 의견을 요약하여 작성하세요."></textarea>
+    <!-- 2. 음성 인식 제어 버튼 -->
+    <label>🎙️ 토론 제어</label>
+    <div class="btn-group">
+        <button id="startBtn">🔴 토론 시작 (음성인식 ON)</button>
+        <button id="stopBtn" disabled>⏹️ 토론 종료 (음성인식 OFF)</button>
+    </div>
+
+    <!-- 3. 실시간 변환 텍스트 창 (readonly로 수정 불가 처리) -->
+    <label>💬 AI가 받아 적은 토론 내용 (수정 불가)</label>
+    <textarea id="debateText" readonly placeholder="[토론 시작] 버튼을 누르고 마이크에 말씀하시면 여기에 실시간으로 기록됩니다."></textarea>
     
-    <!-- 3. 제출 버튼 -->
-    <button id="submitBtn">🚀 토론 내용 제출하기</button>
+    <!-- 4. 최종 제출 버튼 -->
+    <button id="submitBtn" disabled>🚀 최종 토론 내용 제출하기</button>
     
-    <!-- 4. 상태 안내 문구 -->
+    <!-- 5. 상태 안내 -->
     <p id="status">상태: 대기 중...</p>
 </div>
 
-    <!-- Firebase 연결용 스크립트 -->
+    <!-- Firebase SDK 연결 -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
+        // 🔴 의리T의 Firebase 설정값을 여기에 정확히 넣어주세요!
         const firebaseConfig = {
             apiKey: "AIzaSyA-y4_CgIabLBYLNOMQCyQguXFTWNczQKo",
             authDomain: "ethics1class-2026-8e2d7.firebaseapp.com",
@@ -59,50 +78,116 @@
             appId: "1:916404306806:web:f5a214b6881f5c4189b057"
         };
 
-        // Firebase 및 Firestore 시작
+        // Firebase 초기화
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
+        // HTML 엘리먼트 가져오기
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
         const submitBtn = document.getElementById('submitBtn');
+        const debateText = document.getElementById('debateText');
         const statusText = document.getElementById('status');
 
-        // 버튼 클릭 이벤트
+        // 크롬 브라우저 AI 음성인식 엔진 설정
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition;
+
+        if (!SpeechRecognition) {
+            alert("이 브라우저는 음성 인식을 지원하지 않습니다. 크롬(Chrome) 브라우저를 사용해 주세요!");
+        } else {
+            recognition = new SpeechRecognition();
+            recognition.continuous = true;          // 말하는 동안 계속 인식
+            recognition.interimResults = true;      // 말하는 도중에도 실시간으로 글자 보여주기
+            recognition.lang = 'ko-KR';             // 한국어 설정
+
+            // 음성이 인식될 때마다 실행되는 코드
+            recognition.onresult = (event) => {
+                let finalTranscript = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript + ' ';
+                    }
+                }
+                // 기존 내용에 이어서 붙이기 (수정 불가능하도록 조작)
+                if(finalTranscript) {
+                    debateText.value += finalTranscript;
+                }
+            };
+
+            recognition.onerror = (event) => {
+                console.error("음성인식 에러:", event.error);
+                statusText.innerText = "❌ 음성 인식 중 오류 발생: " + event.error;
+            };
+
+            recognition.onend = () => {
+                // 학생들이 종료를 누르지 않았는데 조용해서 멈춘 경우 자동으로 다시 켜기
+                if (startBtn.disabled && !stopBtn.disabled) {
+                    recognition.start();
+                }
+            };
+        }
+
+        // [🟢 토론 시작] 버튼 클릭
+        startBtn.onclick = () => {
+            const names = document.getElementById('studentNames').value.trim();
+            if (!names) {
+                alert("참여 학생 이름을 먼저 입력해 주세요!");
+                return;
+            }
+            
+            debateText.value = ""; // 기존 대화 리셋
+            recognition.start();
+            
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            submitBtn.disabled = true;
+            statusText.innerText = "🎙️ AI가 토론을 듣고 있습니다. 마이크에 대고 이야기하세요!";
+            statusText.style.color = "red";
+        };
+
+        // [🔴 토론 종료] 버튼 클릭
+        stopBtn.onclick = () => {
+            recognition.stop();
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            submitBtn.disabled = false; // 제출 버튼 활성화
+            statusText.innerText = "⏹️ 음성 인식이 종료되었습니다. [최종 제출]을 누르세요.";
+            statusText.style.color = "blue";
+        };
+
+        // [🚀 최종 제출하기] 버튼 클릭
         submitBtn.onclick = async () => {
             const names = document.getElementById('studentNames').value.trim();
             const team = document.getElementById('teamSelect').value;
-            const content = document.getElementById('debateText').value.trim();
+            const content = debateText.value.trim();
 
-            // 빈칸 검사
-            if (!names || !content) {
-                alert("이름과 토론 내용을 모두 입력해 주세요!");
+            if (!content) {
+                alert("인식된 토론 내용이 없습니다. 다시 토론을 진행해 주세요.");
                 return;
             }
 
-            statusText.innerText = "⏳ 장부에 토론 기록을 적는 중...";
-            statusText.style.color = "#666";
+            statusText.innerText = "⏳ 교사 장부에 안전하게 기록 중...";
             submitBtn.disabled = true;
 
             try {
-                // 의리T가 만든 'debates' 컬렉션 장부에 데이터 집어넣기
+                // Firestore에 텍스트 데이터 전송
                 await addDoc(collection(db, "debates"), {
                     studentNames: names,
                     teamName: team,
-                    debateContent: content,
+                    debateContent: content, // 오직 마이크로만 입력된 텍스트
                     timestamp: new Date(),
-                    score: "",     // 선생님 점수 칸 (초기값 빈칸)
-                    feedback: ""   // 선생님 피드백 칸 (초기값 빈칸)
+                    score: "",
+                    feedback: ""
                 });
 
-                statusText.innerText = `✅ 제출 완료! [${team}]의 기록이 성공적으로 저장되었습니다.`;
+                statusText.innerText = `✅ 제출 성공! [${team}]의 도덕 토론 내용이 전송되었습니다.`;
                 statusText.style.color = "green";
-                
-                // 전송 성공 후 입력창 청소
-                document.getElementById('debateText').value = "";
-                submitBtn.disabled = false;
+                debateText.value = ""; // 창 비우기
 
             } catch (error) {
-                console.error("에러 상세 정보:", error);
-                statusText.innerText = "❌ 저장 실패! [F12] 키를 눌러 콘솔 창의 빨간 에러 메시지를 확인해 주세요.";
+                console.error(error);
+                statusText.innerText = "❌ 저장 실패! 규칙(Rules) 설정을 다시 확인해 주세요.";
                 statusText.style.color = "red";
                 submitBtn.disabled = false;
             }
