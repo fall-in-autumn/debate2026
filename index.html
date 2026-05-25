@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>의리T의 100% 무료 도덕 토론방</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; line-height: 1.6; }
+        button { padding: 10px 15px; font-size: 16px; cursor: pointer; margin-right: 10px; border-radius: 5px; border: none; }
+        #startBtn { background-color: #ff4d4d; color: white; }
+        #stopBtn { background-color: #4cacaf; color: white; }
+        button:disabled { background-color: #cccccc; color: #666666; cursor: not-allowed; }
+        #status { font-weight: bold; color: #333333; margin-top: 15px; }
+    </style>
+</head>
+<body>
+    <h1>🎤 100% 무료 모둠 토론방 (의리T 도덕 수업)</h1>
+    <p>💡 미국 무료 서버를 사용하여 안심하고 사용할 수 있는 버전입니다.</p>
+    <hr>
+    
+    <!-- 1. 학생 정보 입력 -->
+    <div>
+        <label><b>이름:</b> </label>
+        <input type="text" id="studentName" placeholder="예: 홍길동" style="padding: 8px; font-size: 15px;">
+        
+        <label style="margin-left: 15px;"><b>모둠 선택:</b> </label>
+        <select id="teamSelect" style="padding: 8px; font-size: 15px;">
+            <option value="1모둠">1모둠</option>
+            <option value="2모둠">2모둠</option>
+            <option value="3모둠">3모둠</option>
+            <option value="4모둠">4모둠</option>
+        </select>
+    </div>
+    <br>
+
+    <!-- 2. 제어 버튼 -->
+    <div>
+        <button id="startBtn">🔴 토론 시작 (녹음)</button>
+        <button id="stopBtn" disabled>⏹️ 토론 종료 (제출)</button>
+    </div>
+    
+    <!-- 3. 진행 상태 안내 -->
+    <p id="status">상태: 대기 중... (이름을 입력하고 시작을 누르세요)</p>
+
+    <!-- Firebase SDK 연결 (script 태그 방식) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
+        import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // 🔴 중요: 미국(us-central) 리전으로 새로 만든 Firebase 설정값을 여기에 넣으세요!
+        const firebaseConfig = {
+            apiKey: "AIzaSyA-y4_CgIabLBYLNOMQCyQguXFTWNczQKo",
+            authDomain: "ethics1class-2026-8e2d7.firebaseapp.com",
+            projectId: "ethics1class-2026-8e2d7",
+            storageBucket: "ethics1class-2026-8e2d7.firebasestorage.app",
+            messagingSenderId: "916404306806",
+            appId: "1:916404306806:web:f5a214b6881f5c4189b057"
+        };
+
+        // 초기화
+        const app = initializeApp(firebaseConfig);
+        const storage = getStorage(app);
+        const db = getFirestore(app);
+
+        let mediaRecorder;
+        let audioChunks = [];
+
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const statusText = document.getElementById('status');
+
+        // [녹음 시작] 누를 때
+        startBtn.onclick = async () => {
+            const nameInput = document.getElementById('studentName').value.trim();
+            if (!nameInput) {
+                alert("학생 이름을 입력해야 토론방에 입장할 수 있습니다!");
+                return;
+            }
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = event => {
+                    audioChunks.push(event.data);
+                };
+
+                // [녹음 중지]가 되어서 파일이 완성되었을 때 자동으로 실행되는 로직
+                mediaRecorder.onstop = async () => {
+                    statusText.innerText = "⏳ 미국의 무료 안전 창고로 파일 전송 중... 잠시만 기다려주세요.";
+                    
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
+                    const team = document.getElementById('teamSelect').value;
+                    const fileName = `${team}_${nameInput}_${Date.now()}.mp3`;
+
+                    try {
+                        // 1. Storage(창고)에 파일 업로드
+                        const storageRef = ref(storage, 'audios/' + fileName);
+                        await uploadBytes(storageRef, audioBlob);
+                        const downloadURL = await getDownloadURL(storageRef);
+
+                        // 2. Firestore(장부)에 정보 기록
+                        await addDoc(collection(db, "debates"), {
+                            studentName: nameInput,
+                            teamName: team,
+                            audioUrl: downloadURL,
+                            timestamp: new Date(),
+                            score: "",     // 선생님 평가 점수 칸
+                            feedback: ""   // 선생님 피드백 칸
+                        });
+
+                        statusText.innerText = `✅ 제출 완료! [${team} ${nameInput}] 학생의 토론 기록이 성공적으로 저장되었습니다.`;
+                        statusText.style.color = "green";
+                    } catch (error) {
+                        console.error(error);
+                        statusText.innerText = "❌ 업로드 실패! Firebase 규칙(Rules)이 테스트 모드인지 확인해 주세요.";
+                        statusText.style.color = "red";
+                    }
+                };
+
+                mediaRecorder.start();
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                statusText.innerText = "🎙️ 실시간 토론 녹음 중... (모둠원들과 도덕적 딜레마에 대해 이야기 나누세요)";
+                statusText.style.color = "red";
+
+            } catch (err) {
+                alert("마이크 권한이 거부되었거나 마이크를 찾을 수 없습니다.");
+            }
+        };
+
+        // [녹음 종료] 누를 때
+        stopBtn.onclick = () => {
+            if (mediaRecorder) {
+                mediaRecorder.stop();
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+            }
+        };
+    </script>
+</body>
+</html>
