@@ -2,9 +2,9 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>의리T의 AI 음성인식 도덕 토론방</title>
+    <title>의리T의 실시간(RTDB) 도덕 토론방</title>
     <style>
-        body { font-family: 'Malgun Gothic', sans-serif; padding: 25px; line-height: 1.6; background-color: #f0f4f8; }
+        body { font-family: 'Malgun Gothic', sans-serif; padding: 25px; line-height: 1.6; background-color: #f2f5f8; }
         .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         h1 { color: #2C3E50; text-align: center; margin-bottom: 5px; }
         .sub-title { text-align: center; color: #7F8C8D; margin-bottom: 20px; font-size: 14px; }
@@ -29,11 +29,10 @@
 <body>
 
 <div class="container">
-    <h1>🎤 AI 음성인식 도덕 토론방</h1>
-    <div class="sub-title">말하는 내용이 실시간으로 받아적히며, 임의 수정은 불가능합니다.</div>
+    <h1>🎤 실시간 도덕 토론방 (RTDB 버전)</h1>
+    <div class="sub-title">Realtime Database를 사용하여 100% 무료로 안전하게 전송합니다.</div>
     <hr>
     
-    <!-- 1. 학생 정보 입력 -->
     <label>👥 참여 학생 이름</label>
     <input type="text" id="studentNames" placeholder="예: 김철수, 이영희, 박민수">
     
@@ -45,44 +44,42 @@
         <option value="4모둠">4모둠</option>
     </select>
 
-    <!-- 2. 음성 인식 제어 버튼 -->
     <label>🎙️ 토론 제어</label>
     <div class="btn-group">
         <button id="startBtn">🔴 토론 시작 (음성인식 ON)</button>
         <button id="stopBtn" disabled>⏹️ 토론 종료 (음성인식 OFF)</button>
     </div>
 
-    <!-- 3. 실시간 변환 텍스트 창 (readonly로 수정 불가 처리) -->
     <label>💬 AI가 받아 적은 토론 내용 (수정 불가)</label>
     <textarea id="debateText" readonly placeholder="[토론 시작] 버튼을 누르고 마이크에 말씀하시면 여기에 실시간으로 기록됩니다."></textarea>
     
-    <!-- 4. 최종 제출 버튼 -->
     <button id="submitBtn" disabled>🚀 최종 토론 내용 제출하기</button>
     
-    <!-- 5. 상태 안내 -->
     <p id="status">상태: 대기 중...</p>
 </div>
 
-    <!-- Firebase SDK 연결 -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        // 🔴 중요: firestore가 아니라 database를 불러옵니다!
+        import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
         // 🔴 의리T의 Firebase 설정값을 여기에 정확히 넣어주세요!
+        // (databaseURL 이라는 주소가 새로 포함되어 있을 수 있으니 프로젝트 설정에서 다시 확인 후 넣으면 좋습니다!)
         const firebaseConfig = {
+            apiKey: "AIzaSy...",
             apiKey: "AIzaSyA-y4_CgIabLBYLNOMQCyQguXFTWNczQKo",
             authDomain: "ethics1class-2026-8e2d7.firebaseapp.com",
+            databaseURL: "https://ethics1class-2026-8e2d7-default-rtdb.firebaseio.com",
             projectId: "ethics1class-2026-8e2d7",
             storageBucket: "ethics1class-2026-8e2d7.firebasestorage.app",
             messagingSenderId: "916404306806",
             appId: "1:916404306806:web:f5a214b6881f5c4189b057"
         };
 
-        // Firebase 초기화
+        // Firebase 및 Realtime DB 초기화
         const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+        const db = getDatabase(app);
 
-        // HTML 엘리먼트 가져오기
         const startBtn = document.getElementById('startBtn');
         const stopBtn = document.getElementById('stopBtn');
         const submitBtn = document.getElementById('submitBtn');
@@ -94,14 +91,13 @@
         let recognition;
 
         if (!SpeechRecognition) {
-            alert("이 브라우저는 음성 인식을 지원하지 않습니다. 크롬(Chrome) 브라우저를 사용해 주세요!");
+            alert("크롬(Chrome) 브라우저를 사용해 주세요!");
         } else {
             recognition = new SpeechRecognition();
-            recognition.continuous = true;          // 말하는 동안 계속 인식
-            recognition.interimResults = true;      // 말하는 도중에도 실시간으로 글자 보여주기
-            recognition.lang = 'ko-KR';             // 한국어 설정
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'ko-KR';
 
-            // 음성이 인식될 때마다 실행되는 코드
             recognition.onresult = (event) => {
                 let finalTranscript = '';
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
@@ -109,85 +105,71 @@
                         finalTranscript += event.results[i][0].transcript + ' ';
                     }
                 }
-                // 기존 내용에 이어서 붙이기 (수정 불가능하도록 조작)
                 if(finalTranscript) {
                     debateText.value += finalTranscript;
                 }
             };
 
-            recognition.onerror = (event) => {
-                console.error("음성인식 에러:", event.error);
-                statusText.innerText = "❌ 음성 인식 중 오류 발생: " + event.error;
-            };
-
             recognition.onend = () => {
-                // 학생들이 종료를 누르지 않았는데 조용해서 멈춘 경우 자동으로 다시 켜기
                 if (startBtn.disabled && !stopBtn.disabled) {
                     recognition.start();
                 }
             };
         }
 
-        // [🟢 토론 시작] 버튼 클릭
+        // [🔴 토론 시작] 버튼
         startBtn.onclick = () => {
             const names = document.getElementById('studentNames').value.trim();
             if (!names) {
                 alert("참여 학생 이름을 먼저 입력해 주세요!");
                 return;
             }
-            
-            debateText.value = ""; // 기존 대화 리셋
+            debateText.value = ""; 
             recognition.start();
             
             startBtn.disabled = true;
             stopBtn.disabled = false;
             submitBtn.disabled = true;
-            statusText.innerText = "🎙️ AI가 토론을 듣고 있습니다. 마이크에 대고 이야기하세요!";
+            statusText.innerText = "🎙️ AI가 토론을 실시간으로 기록 중입니다...";
             statusText.style.color = "red";
         };
 
-        // [🔴 토론 종료] 버튼 클릭
+        // [⏹️ 토론 종료] 버튼
         stopBtn.onclick = () => {
             recognition.stop();
             startBtn.disabled = false;
             stopBtn.disabled = true;
-            submitBtn.disabled = false; // 제출 버튼 활성화
-            statusText.innerText = "⏹️ 음성 인식이 종료되었습니다. [최종 제출]을 누르세요.";
+            submitBtn.disabled = false;
+            statusText.innerText = "⏹️ 기록 정지. [최종 제출하기] 버튼을 누르세요.";
             statusText.style.color = "blue";
         };
 
-        // [🚀 최종 제출하기] 버튼 클릭
+        // [🚀 최종 제출하기] 버튼 (Realtime Database로 전송)
         submitBtn.onclick = async () => {
             const names = document.getElementById('studentNames').value.trim();
             const team = document.getElementById('teamSelect').value;
             const content = debateText.value.trim();
 
-            if (!content) {
-                alert("인식된 토론 내용이 없습니다. 다시 토론을 진행해 주세요.");
-                return;
-            }
-
-            statusText.innerText = "⏳ 교사 장부에 안전하게 기록 중...";
+            statusText.innerText = "⏳ 실시간 장부에 기록 중...";
             submitBtn.disabled = true;
 
             try {
-                // Firestore에 텍스트 데이터 전송
-                await addDoc(collection(db, "debates"), {
+                // Realtime DB의 'debates' 노드에 데이터 추가
+                const dbRef = ref(db, 'debates');
+                await push(dbRef, {
                     studentNames: names,
                     teamName: team,
-                    debateContent: content, // 오직 마이크로만 입력된 텍스트
-                    timestamp: new Date(),
-                    score: "",
-                    feedback: ""
+                    debateContent: content,
+                    timestamp: Date.now(), // 실시간 디비는 타임스탬프를 숫자로 저장하는 게 편리합니다.
                 });
 
-                statusText.innerText = `✅ 제출 성공! [${team}]의 도덕 토론 내용이 전송되었습니다.`;
+                statusText.innerText = `✅ 제출 성공! Realtime 장부에 안전하게 저장되었습니다.`;
                 statusText.style.color = "green";
-                debateText.value = ""; // 창 비우기
+                debateText.value = "";
 
             } catch (error) {
                 console.error(error);
-                statusText.innerText = "❌ 저장 실패! 규칙(Rules) 설정을 다시 확인해 주세요.";
+                statusText.innerText = "❌ 저장 실패! RTDB 규칙 설정을 확인해 주세요.";
                 statusText.style.color = "red";
                 submitBtn.disabled = false;
             }
